@@ -5,7 +5,7 @@ import random
 
 class LyricsTemplates:
 
-	def __init__(self, songs, thrsh, lines):
+	def __init__(self, songs, thrsh, lines, pre_state):
 		self.songs = songs
 		self.frequency = defaultdict(list)
 		self.states = defaultdict(set)
@@ -15,7 +15,11 @@ class LyricsTemplates:
 		# after 7 words, look for the closest word that ends the sentence
 		self.sentence_threshold = thrsh
 		self.lines_param = lines
-		self.generate_states()
+		self.pre_state = pre_state
+		self.generate_states() # generate states of the markov model
+		for k,v in self.states.items():
+			print(k, ":", v)
+		#print(self.end_states)
 		self.template = self.lyric_generator()
 		
 	def file_path(self, song):
@@ -53,16 +57,17 @@ class LyricsTemplates:
 			with open(file) as f:
 				last = None
 				for line in f:			
-					words = [self.process_word(w) for w in line[:-1].split()]
-					if words:
+					words = [self.process_word(w) for w in line[:-1].split()] # removing endline char at end
+					if len(words) > 1:
+						state = deque()
 						if last: 
-							self.link_states(last, words[0])
+							self.link_states(last, tuple(words[0:2]))
 						self.end_states.add(words[-1])
-						for i in range(1, len(words)):
-							self.link_states(words[i-1], words[i])
+						for i in range(self.pre_state, len(words)):
+							self.link_states(tuple(words[i-self.pre_state: i]), words[i])
 						last = words[-1]
 
-	def find_end(self, state):
+	def find_end(self, line):
 		"""
 		Finds the closest end state from a state. Uses a BFS
 
@@ -70,36 +75,47 @@ class LyricsTemplates:
 		:returns: the closest end state 
 		"""
 		visited = set()
-		queue = deque([(state, [state])])
+		last = line[-2:]
+		print("line:",line)
+		print("last:", last)
+		queue = deque([last])
 		while queue:
-			state, path = queue.popleft()
+			path = queue.popleft()
+			print("path:", path)
+			state = tuple(path[-2:])
+			print("state:",state)
 			for s in self.states[state]:
 				if s not in visited:
 					_path = path + [s]
 					if s in self.end_states: return _path
-					queue.append((s, _path))
+					queue.append(_path)
 					visited.add(s)
 
 	def get_random_state(self):
 		S = list(self.states.keys())
-		return S[random.randint(1, len(S))-1]
+		rand = S[random.randint(1, len(S))-1]
+		while rand in self.end_states:
+			rand = S[random.randint(1, len(S))-1]
+		return rand
 
-	def next_state(self, state):
-		if state in self.states:
-			return self.frequency[state][random.randint(1, len(self.frequency[state]))-1]
+	def next_state(self, line):
+		print("line:",line)
+		prev = tuple(line[-2:]) # grab last two words in the line
+		if prev in self.states:
+			return self.frequency[prev][random.randint(1, len(self.frequency[prev]))-1]
 
 	def lyric_generator(self):
 		lines = []
 		last = None
 		while len(lines) != self.lines_param:
 			state = self.get_random_state() if not last else self.next_state(last)
-			line = [state]
+			line = [s for s in state]
 			while len(line) != self.sentence_threshold and state not in self.end_states:
-				state = self.next_state(state)
+				state = self.next_state(line)
 				line.append(state)
+			print(line)
 			if state not in self.end_states:
-				line.pop()
-				line += self.find_end(state)
+				line += self.find_end(line)
 			lines.append(line)
 		return lines
 
@@ -107,7 +123,7 @@ class LyricsTemplates:
 
 s = Song('give me love', 'ed sheeran', 1)
 songs = [s]
-LT = LyricsTemplates(songs, 7, 15)
+LT = LyricsTemplates(songs, 7, 15, 2)
 print(LT.states)
 print('-----------------------------------------------')
 print(LT.end_states)
