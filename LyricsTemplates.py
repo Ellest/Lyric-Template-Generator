@@ -17,8 +17,8 @@ class LyricsTemplates:
 		self.lines_param = lines
 		self.pre_state = pre_state
 		self.generate_states() # generate states of the markov model
-		for k,v in self.states.items():
-			print(k, ":", v)
+		#for k,v in self.states.items():
+		#	print(k, ":", v)
 		#print(self.end_states)
 		self.template = self.lyric_generator()
 		
@@ -76,14 +76,14 @@ class LyricsTemplates:
 		"""
 		visited = set()
 		last = line[-2:]
-		print("line:",line)
-		print("last:", last)
+		#print("line:",line)
+		#print("last:", last)
 		queue = deque([last])
 		while queue:
 			path = queue.popleft()
-			print("path:", path)
+			#print("path:", path)
 			state = tuple(path[-2:])
-			print("state:",state)
+			#print("state:",state)
 			for s in self.states[state]:
 				if s not in visited:
 					_path = path + [s]

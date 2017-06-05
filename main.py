@@ -32,19 +32,22 @@ if __name__ == "__main__":
 				delta = run_date - last_run_date
 				if abs(delta.days) >= 7 or (delta.days > 0 and weekday > run_weekday) \
 					or (delta.days < 0 and weekday < run_weekday):
-					print("create new")
+					# new data collection run about to happen. Record in history as most recent
+					# run to be checked next time the program is run
+					with open(file_dir, 'a') as f:
+						f.write('\n' + date_string)
 					create_dir(date_string)
 					run_generator(date_string)
 					# scrape new data
 				else:
 					# just use existing data
 					print("use existing data")
-					run_generator(lines[-2])
+					run_generator(lines[-1])
 			else:
 				print("Check run history format")
 	else:
 		with open(file_dir, 'w') as f:
-			f.write("Run History:\n")
+			f.write("Data Collection Run History:\n")
 			f.write("-----------------\n")
 			f.write(date_string)
 			create_dir(date_string)
