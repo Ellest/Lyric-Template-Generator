@@ -1,3 +1,8 @@
+"""
+This is a Song object to easily keep track of scraped songs. Also stores file path
+for each song to be used in creating and parsing through text files.
+
+"""
 class Song:
 	def __init__(self, title, artist, rank):
 		self.title = title

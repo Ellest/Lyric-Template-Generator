@@ -15,6 +15,14 @@ import os
 import sys
 import traceback
 
+"""
+This is the main scraper class. It can be thought of as a well behaved scraping
+bot that scrapes song lyrics of websites. Checks if the website exists by using
+a head request and only scrapes when the exact url is found as redirections are)
+frequent.
+
+"""
+
 class Scraper:
 
 	def __init__(self, path):
@@ -23,6 +31,11 @@ class Scraper:
 		self._path = path + '/'
 
 	def process_artist(self, artist):
+		"""
+		Cleans string format to extract user info.
+
+		:returns: string
+		"""
 		# stripping featured artists. Most lyric sites have lyrics listed under main artist
 		if "Featuring" in artist:
 			artist = artist[:artist.index("Featuring")]
@@ -35,6 +48,11 @@ class Scraper:
 		return artist
 
 	def process_title(self, title):
+		"""
+		Cleans string format to extract title info.
+
+		:returns: string
+		"""
 		# strip apostrophes
 		if '\'' in title:
 			title = re.sub('\'', '', title)
@@ -43,6 +61,12 @@ class Scraper:
 		return title
 
 	def scrape_billboard(self):
+		"""
+		Method that handles scraping billboard's hot 100. Updates instance variables 
+		to store list of top songs 
+
+		:returns: void
+		"""
 		# url of hot 100 on billboard
 		url = "http://www.billboard.com/charts/hot-100"
 		http = urllib3.PoolManager()
@@ -60,42 +84,12 @@ class Scraper:
 			pTitle, pArtist = self.process_title(title), self.process_artist(artist)
 			self._songs.append(Song(pTitle, pArtist, i+1))
 
-	def scrape_lyrics(self, songs):
-		lyrics = []
-		headers = { 
-					'User-Agent': 'Mozilla/5.0 (Windows NT 6.0; WOW64; rv:24.0) Gecko/20100101 Firefox/24.0' 
-				  }
-		for s in songs:
-			time.sleep(5)
-			#print (s.title, s.artist)
-			# AZLyrics www.azlyrics.com/<artist>/<song title>
-			az = "http://www.azlyrics.com/lyrics/" + ''.join(s.artist.split()).lower() + "/" + ''.join(s.title.split()).lower() + ".html"
-			print(az)
-			# azlyrics structure
-			try:
-				r = urllib3.Request(az, headers = headers)
-				page = urlopen(az, headers = headers)
-				soup_az = BeautifulSoup(page.read(), "lxml")
-				content_div = soup_az.find("div", class_="col-xs-12 col-lg-8 text-center")
-				lyric_div = content_div.find("div", class_=None)
-				# change line break tag to dots
-				processed = re.sub('<br\s*?>', '.', lyric_div.text)
-				lines = processed.split()
-				lyrics.append(lines)
-				continue
-			except URLError: # if no url or other connection errors, skip
-				print("no url")
-				pass
-			# Metrolyrics www.metrolyrics.com/<song title>-lyrics-<name>.html
-			metro = "http://www.metrolyrics.com/" + '-'.join(s.title.split()) + "-lyrics-" + '-'.join(s.artist.split()) + ".html"
-			# Genius Lyrics https://genius.com/<artist>-<song title>-lyrics
-			genius = "https://genius.com/" + '-'.join(s.artist.split()) + "-" + '-'.join(s.title.split()) + "-lyrics"
+	def scrape_layer(self):
+		"""
+		Scrapes through multiple sites if one a url didn't exist for a site.
 
-			#http = urllib3.PoolManager()
-			#request_az = http.request('GET', az)
-
-	def scrape_dummy(self):
-
+		:returns: void 
+		"""
 		# azlyrics structure
 		try:
 			#page = urlopen('http://www.azlyrics.com/lyrics/edsheeran/theateam.html')
@@ -153,41 +147,31 @@ class Scraper:
 			print("no url")
 
 	def scrape_new(self):
+		"""
+		Main method for scraping and parsing data. First checks if the url exists. 
+		If it does we scrape the potential url corresponding to the song, then 
+		prints the lyrics for the users
+
+		:returns: void
+		"""
 		no_urls = 0
 		false_urls = 0
 		for i, song in enumerate(self._songs):
-			headers = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Safari/537.36' }
-			print(song.title, song.artist)
+			headers = { 
+				'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Safari/537.36' 
+				}
 			# metro structure
 			metro = "http://www.metrolyrics.com/" + '-'.join(song.title.split()) + "-lyrics-" + '-'.join(song.artist.split()) + ".html"
-			print(metro)
-			request = requests.head(metro)
-			if request.status_code == 301:
+			request = requests.head(metro) # check if site exists
+			if request.status_code == 301: # 301 == moved permanantely (new url exists)
 				r = urllib.request.Request(metro, data=None, headers=headers)
 				page = urllib.request.urlopen(r)
 				soup = BeautifulSoup(page, "lxml")
 				lyric_body = soup.find("div", {"id": "lyrics-body-text"})
 				verses = lyric_body.find_all("p", class_='verse')
 				if verses:
-					#print(verses[0])
-					#lines = []
 					dir = self._path + song.song_file
 					self.write_to_file_obj(dir, verses)
-					#print(self.song_file_to_list(dir))
-					"""
-					for verse in verses:
-						try:
-							processed = re.sub('\n', '.^', verse.text)
-							processed = processed.split('^')
-							if processed and processed[0] == '.':
-								processed = processed[1:]
-							lines.extend(processed)
-						except:
-							print('regex error')
-					"""
-					#self.write_to_file(lines, song.title, song.artist)
-					#self._lyrics_list.append(lines)
-					#print(lines)
 				else:
 					print("Wrong Format?")
 					false_urls += 1
@@ -199,7 +183,11 @@ class Scraper:
 		print("URLs Failed: ", no_urls)
 
 	def write_to_file_obj(self, dir, soup_obj):
-		print(dir)
+		"""
+		Helper function for writing a BeautifulSoup obj to a file
+
+		:returns: void
+		"""
 		if not os.path.exists(dir):
 			with open(dir, 'a') as f:
 				for obj in soup_obj:
@@ -207,20 +195,28 @@ class Scraper:
 					f.write(obj.text)
 				f.write('\n') # last line missing line break
 
-	def write_to_file(self, lines, title, artist):
-		dir = self._path + title + '_' + artist + '.txt'
-		print(dir)
-		with open(dir, 'a') as f:
-			for l in lines:
-				f.write(l)
-
 	def get_lyrics(self):
+		"""
+		Returns the lyrics list.
+
+		:returns: void
+		"""
 		return self._lyrics_list
 
 	def print_lyrics(self):
+		"""
+		Prints the lyrics list.
+
+		:returns: void
+		"""
 		print(self._lyrics_list)
 
 	def print_songs(self):
+		"""
+		Prints the list of all songs successfully parsed from billboard's hot 100
+
+		:returns: void
+		"""
 		for i,s in enumerate(self._songs):
 			print('{0}. {1}'.format(i, s.print_info()))
 
