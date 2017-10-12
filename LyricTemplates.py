@@ -4,6 +4,16 @@ from Scraper import Scraper
 import traceback
 from TemplateGenerator import TemplateGenerator
 
+"""
+Main class that handles working directories, run histories, and user inputs. 
+Maintains a run history and cache scraped lyrics in a folder titled with 
+the run date and uses this cached data instead of re-scraping everything if 
+the following run is within a week. If last_run.txt is corrupted, deleting this 
+file will allow this class to re-create a new file of the right structure 
+and use that file to store the run history. 
+
+"""
+
 class LyricsTemplates:
 
 	def __init__(self, threshold, line_number, look_back):

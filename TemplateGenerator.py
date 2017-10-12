@@ -142,9 +142,8 @@ class TemplateGenerator:
 		:returns: void
 		"""
 		prev = tuple(line[-2:]) # grab last two words in the line
-		if prev in self.states:
-			return random.choice(self.frequency[prev])
-			#return self.frequency[prev][random.randint(1, len(self.frequency[prev]))-1]
+		# grabs a random state if last two 
+		return random.choice(self.frequency.get(prev, []))
 
 	def generate_lyric_template(self):
 		"""
@@ -154,12 +153,17 @@ class TemplateGenerator:
 		"""
 		lines = []
 		last = None
+		# until we generate enough lines to satisfy the line requirement
 		while len(lines) != self.lines_param:
+			# start with a random state. get a valid state from previous two states
+			# in the previous sentence starting from the second sentence. 
 			state = self.get_random_state() if not last else self.next_state(last)
 			line = [s for s in state]
 			while len(line) != self.sentence_threshold and state not in self.end_states:
 				state = self.next_state(line)
 				line.append(state)
+			# if threshold has been reached but we're not at a valid end state (end
+			# of a sentencd), look for the closest end state to end the line. 
 			if state not in self.end_states:
 				line += self.find_end(line)
 			lines.append(line)
